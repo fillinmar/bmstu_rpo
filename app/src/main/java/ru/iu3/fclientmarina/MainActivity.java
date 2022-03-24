@@ -5,12 +5,12 @@ import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.result.ActivityResultCallback;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
@@ -18,7 +18,47 @@ import org.apache.commons.codec.binary.Hex;
 import java.util.Random;
 import ru.iu3.fclientmarina.databinding.ActivityMainBinding;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TransactionEvents{
+
+    private String pin;
+    @Override
+    public String enterPin(int ptc, String amount) {
+        pin = new String();
+        Intent it = new Intent(MainActivity.this, PinpadActivity.class);
+        it.putExtra("ptc", ptc);
+        it.putExtra("amount", amount);
+        synchronized (MainActivity.this) {
+            activityResultLauncher.launch(it);
+            try {
+                MainActivity.this.wait();
+            } catch (Exception ex) {
+                //todo: log error
+            }
+        }
+        return pin;
+    }
+
+    @Override
+    public void transactionResult(boolean result) {
+        runOnUiThread(()-> {
+            Toast.makeText(MainActivity.this, result ? "ok" : "failed", Toast.LENGTH_SHORT);
+        });
+    }
+
+    public static byte[] stringToHex(String s)
+    {
+        byte[] hex;
+        try
+        {
+            hex = Hex.decodeHex(s.toCharArray());
+        }
+        catch (DecoderException ex)
+        {
+            hex = null;
+        }
+        return hex;
+    }
+
     static {
         System.loadLibrary("native-lib");
         System.loadLibrary("mbedcrypto");
@@ -26,6 +66,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     ActivityResultLauncher activityResultLauncher;
+
+    public native boolean transaction(byte[] trd);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,30 +87,34 @@ public class MainActivity extends AppCompatActivity {
         byte[] encrypt_mas = encrypt(d_key, mas);
         byte[] decrypt_mas = decrypt(d_key, encrypt_mas);
 
-        activityResultLauncher =
-                registerForActivityResult(
+        activityResultLauncher
+                = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult>() {
                     @Override
                     public void onActivityResult(ActivityResult result) {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Intent data = result.getData();
-                            // обработка результата
-                            String pin = data.getStringExtra("pin");
-                            Toast.makeText(MainActivity.this, pin, Toast.LENGTH_SHORT).show();
+                            pin = data.getStringExtra("pin");
+                            synchronized (MainActivity.this) {
+                                MainActivity.this.notifyAll();
+                            }
                         }
                     }
                 });
-
-
     }
 
     public void onButtonClick(View v)
     {
-        Intent it = new Intent(this, PinpadActivity.class);
-        //при StartActivity нет вывода сообщения. Используем  activityResultLauncher
-        activityResultLauncher.launch(it);
-//        startActivity(it);
+        new Thread(()-> {
+            try {
+                byte[] trd = stringToHex("9F0206000000000100");
+                transaction(trd);
+
+            } catch (Exception ex) {
+                // todo: log error
+            }
+        }).start();
     }
     public native String stringFromJNI();
     public static native int initRng();
