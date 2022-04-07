@@ -19,8 +19,6 @@ public class PinpadActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-
         setContentView(R.layout.activity_pinpad2);
         tvPin = findViewById(R.id.txtPin);
         ShuffleKeys();

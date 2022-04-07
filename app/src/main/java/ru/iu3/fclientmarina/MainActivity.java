@@ -9,12 +9,20 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import ru.iu3.fclientmarina.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity implements TransactionEvents{
@@ -35,6 +43,38 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
             }
         }
         return pin;
+    }
+
+    protected String getPageTitle(String html)
+    {
+        Pattern pattern = Pattern.compile("<title>(.+?)</title>", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(html);
+        String p;
+        if (matcher.find())
+            p = matcher.group(1);
+        else
+            p = "Not found";
+        return p;
+
+    }
+
+    protected void testHttpClient()
+    {
+        new Thread(() -> {
+            try {
+                HttpURLConnection uc = (HttpURLConnection)
+                        (new URL("http://10.0.2.2:8080/api/v1/title").openConnection());
+                InputStream inputStream = uc.getInputStream();
+                String html = IOUtils.toString(inputStream);
+                String title = getPageTitle(html);
+                runOnUiThread(() ->
+                {
+                    Toast.makeText(this, title, Toast.LENGTH_LONG).show();
+                });
+            } catch (Exception ex) {
+                Log.e("fapptag", "Http client fails", ex);
+            }
+        }).start();
     }
 
     @Override
@@ -105,15 +145,16 @@ public class MainActivity extends AppCompatActivity implements TransactionEvents
 
     public void onButtonClick(View v)
     {
-        new Thread(()-> {
-            try {
-                byte[] trd = stringToHex("9F0206000000000100");
-                transaction(trd);
-
-            } catch (Exception ex) {
-                // todo: log error
-            }
-        }).start();
+        testHttpClient();
+//        new Thread(()-> {
+//            try {
+//                byte[] trd = stringToHex("9F0206000000000100");
+//                transaction(trd);
+//
+//            } catch (Exception ex) {
+//                // todo: log error
+//            }
+//        }).start();
     }
     public native String stringFromJNI();
     public static native int initRng();
