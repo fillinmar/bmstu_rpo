@@ -1,7 +1,14 @@
 package com.example.rpolab;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.view.View;
 import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.widget.TextView;
@@ -26,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
 
+    ActivityResultLauncher activityResultLauncher;
+    private String info;
+
     @SuppressLint("SetTextI18n")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,23 +44,58 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        String s_key = "key is a 16 char";
-        String original = new String("rpo-2022");
+        initRng();
 
-        byte[] key = s_key.getBytes(StandardCharsets.UTF_8);
-
-        byte[] encrypted = encrypt(key, original.getBytes());
-        String decrypted = new String(decrypt(key, encrypted));
-
-        Log.d("rpolab_", "ORIGINAL: " + original + " / BYTES " + original.getBytes());
-        Log.d("rpolab_", "KEY: " + s_key + " / " + Arrays.toString(key) + " / LENGTH " + key.length);
-        Log.d("rpolab_", "ENCRYPTED: " + Arrays.toString(encrypted));
-        Log.d("rpolab_", "DECRYPTED: " + decrypted);
-
-        // Example of a call to a native method
+//        String s_key = "key is a 16 char";
+//        String original = new String("rpo-2022");
+//
+//        byte[] key = s_key.getBytes(StandardCharsets.UTF_8);
+//
+//        byte[] encrypted = encrypt(key, original.getBytes());
+//        String decrypted = new String(decrypt(key, encrypted));
+//
+//        Log.d("rpolab_", "ORIGINAL: " + original + " / BYTES " + original.getBytes());
+//        Log.d("rpolab_", "KEY: " + s_key + " / " + Arrays.toString(key) + " / LENGTH " + key.length);
+//        Log.d("rpolab_", "ENCRYPTED: " + Arrays.toString(encrypted));
+//        Log.d("rpolab_", "DECRYPTED: " + decrypted);
+//
+//        // Example of a call to a native method
 //        TextView tv = binding.sampleText;
 //        tv.setText(stringFromJNI() + "\nencrypted " +
-//                Arrays.toString(encrypted)+"\ndecrypted " + decrypted);
+//        Arrays.toString(encrypted)+"\ndecrypted " + decrypted);
+
+        activityResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                new ActivityResultCallback<ActivityResult> () {
+                    @Override
+                    public void onActivityResult(ActivityResult result) {
+                        if (result.getResultCode() == Activity.RESULT_OK) {
+                            Intent data = result.getData();
+                            String pin = data.getStringExtra("pin");
+                            Toast.makeText(MainActivity.this, pin, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    public static byte[] stringToHex(String s)
+    {
+        byte[] hex;
+        try
+        {
+            hex = Hex.decodeHex(s.toCharArray());
+        }
+        catch (DecoderException ex)
+        {
+            hex = null;
+        }
+        return hex;
+    }
+
+    public void onButtonClick(View v) {
+        Intent it = new Intent(this, PinpadActivity.class);
+        //startActivity(it);
+        activityResultLauncher.launch(it);
     }
 
     /**
