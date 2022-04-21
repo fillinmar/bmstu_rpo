@@ -23,7 +23,7 @@ import org.apache.commons.codec.binary.Hex;
 
 import com.example.rpolab.databinding.ActivityMainBinding;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TransactionEvents {
 
     // Used to load the 'rpolab' library on application startup.
     static {
@@ -34,7 +34,26 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
 
     ActivityResultLauncher activityResultLauncher;
-    private String info;
+    private String pin;
+
+    public native boolean transaction(byte[] trd);
+
+    @Override
+    public String enterPin(int ptc, String amount) {
+        pin = new String();
+        Intent it = new Intent(MainActivity.this, PinpadActivity.class);
+        it.putExtra("ptc", ptc);
+        it.putExtra("amount", amount);
+        synchronized (MainActivity.this) {
+            activityResultLauncher.launch(it);
+            try {
+                MainActivity.this.wait();
+            } catch (Exception ex) {
+                //todo: log error
+            }
+        }
+        return pin;
+    }
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -46,24 +65,6 @@ public class MainActivity extends AppCompatActivity {
 
         initRng();
 
-//        String s_key = "key is a 16 char";
-//        String original = new String("rpo-2022");
-//
-//        byte[] key = s_key.getBytes(StandardCharsets.UTF_8);
-//
-//        byte[] encrypted = encrypt(key, original.getBytes());
-//        String decrypted = new String(decrypt(key, encrypted));
-//
-//        Log.d("rpolab_", "ORIGINAL: " + original + " / BYTES " + original.getBytes());
-//        Log.d("rpolab_", "KEY: " + s_key + " / " + Arrays.toString(key) + " / LENGTH " + key.length);
-//        Log.d("rpolab_", "ENCRYPTED: " + Arrays.toString(encrypted));
-//        Log.d("rpolab_", "DECRYPTED: " + decrypted);
-//
-//        // Example of a call to a native method
-//        TextView tv = binding.sampleText;
-//        tv.setText(stringFromJNI() + "\nencrypted " +
-//        Arrays.toString(encrypted)+"\ndecrypted " + decrypted);
-
         activityResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult> () {
@@ -71,8 +72,10 @@ public class MainActivity extends AppCompatActivity {
                     public void onActivityResult(ActivityResult result) {
                         if (result.getResultCode() == Activity.RESULT_OK) {
                             Intent data = result.getData();
-                            String pin = data.getStringExtra("pin");
-                            Toast.makeText(MainActivity.this, pin, Toast.LENGTH_SHORT).show();
+                            pin = data.getStringExtra("pin");
+                            synchronized (MainActivity.this){
+                                MainActivity.this.notifyAll();
+                            }
                         }
                     }
                 });
@@ -93,9 +96,26 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onButtonClick(View v) {
-        Intent it = new Intent(this, PinpadActivity.class);
-        //startActivity(it);
-        activityResultLauncher.launch(it);
+        /*        new Thread(()-> {
+             try {
+                 byte[] trd = stringToHex("9F0206000000000100");
+                 boolean ok = transaction(trd);
+                 runOnUiThread(()-> {
+                     Toast.makeText(MainActivity.this, ok ? "ok" : "failed", Toast.LENGTH_SHORT).show();
+                 });
+             } catch (Exception ex) {
+                 // todo: log error
+             }
+         }).start(); */
+        byte[] trd = stringToHex("9F0206000000000100");
+        transaction(trd);
+    }
+
+    @Override
+    public void transactionResult(boolean result) {
+        runOnUiThread(()-> {
+            Toast.makeText(MainActivity.this, result ? "ok" : "failed", Toast.LENGTH_SHORT).show();
+        });
     }
 
     /**
