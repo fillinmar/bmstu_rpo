@@ -1,6 +1,6 @@
 import React, {Component, useEffect, useState} from 'react';
 import BackendService from '../services/BackendService';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
 import {faChevronLeft, faSave} from '@fortawesome/fontawesome-free-solid';
 import {alertActions} from "../utils/Rdx";
 import {connect} from "react-redux";
